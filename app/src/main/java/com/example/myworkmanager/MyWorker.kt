@@ -11,6 +11,8 @@ import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.loopj.android.http.AsyncHttpResponseHandler
 import com.loopj.android.http.SyncHttpClient
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import cz.msebera.android.httpclient.Header
 import org.json.JSONObject
 import java.text.DecimalFormat
@@ -50,19 +52,31 @@ class MyWorker(context: Context, workerParams: WorkerParameters) : Worker(contex
                 val result = String(responseBody)
                 Log.d(TAG, result)
                 try {
-                    val responseObject = JSONObject(result)
+//                    val responseObject = JSONObject(result)
+//
+//                    val currentWeather: String = responseObject.getJSONArray("weather").getJSONObject(0).getString("main")
+//                    val description: String = responseObject.getJSONArray("weather").getJSONObject(0).getString("description")
+//                    val tempInKelvin = responseObject.getJSONObject("main").getDouble("temp")
 
-                    val currentWeather: String = responseObject.getJSONArray("weather").getJSONObject(0).getString("main")
-                    val description: String = responseObject.getJSONArray("weather").getJSONObject(0).getString("description")
-                    val tempInKelvin = responseObject.getJSONObject("main").getDouble("temp")
+                    // implementasi moshi
+                    val moshi = Moshi.Builder()
+                        .addLast(KotlinJsonAdapterFactory())
+                        .build()
 
-                    val tempInCelsius = tempInKelvin - 273
-                    val temperature: String = DecimalFormat("##.##").format(tempInCelsius)
+                    val jsonAdapter = moshi.adapter(Response::class.java)
+                    val response = jsonAdapter.fromJson(result)
 
-                    val title = "Current Weather in $city"
-                    val message = "$currentWeather, $description with $temperature celsius"
-                    
-                    showNotification(title, message)
+                    response?.let {
+                        val currentWeather = it.weatherList[0].main
+                        val description = it.weatherList[0].description
+                        val tempInKelvin = it.main.temperature
+
+                        val tempInCelsius = tempInKelvin - 273
+                        val temperature: String = DecimalFormat("##.##").format(tempInCelsius)
+                        val title = "Current Weather in $city"
+                        val message = "$currentWeather, $description with $temperature celsius"
+                        showNotification(title, message)
+                    }
                     Log.d(TAG, "onSuccess: Selesai.....")
                     resultStatus = Result.success()
                 } catch (e: Exception) {
